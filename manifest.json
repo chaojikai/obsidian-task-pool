@@ -1,0 +1,10 @@
+{
+  "id": "task-pool",
+  "name": "Task Pool",
+  "version": "0.1.0",
+  "minAppVersion": "1.5.0",
+  "description": "Fold completed tasks, turn #tag sections into tabs, and drag list items like blocks.",
+  "author": "Link",
+  "authorUrl": "https://github.com/chaojikai",
+  "isDesktopOnly": false
+}
