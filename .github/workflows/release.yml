@@ -1,10 +1,17 @@
-# On a tag that matches the manifest.json version (for example 1.1.0): build and create a draft release with main.js, manifest.json and styles.css
+# Builds the plugin and publishes main.js, manifest.json and styles.css to the GitHub release for a tag.
+# Runs on a tag push whose name matches the manifest.json version (for example 0.1.0), or by hand from the Actions tab.
+# A missing release is created as a draft; an existing one gets its assets replaced.
 name: Release Obsidian plugin
 
 on:
   push:
     tags:
       - "*"
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Release tag to build and upload assets for"
+        required: true
 
 jobs:
   build:
@@ -20,16 +27,21 @@ jobs:
         with:
           node-version: "20"
 
-      - name: Check tag matches manifest version
+      - name: Resolve tag and check it matches manifest version
+        id: tag
         run: |
-          tag="${GITHUB_REF#refs/tags/}"
+          tag="${{ github.event.inputs.tag }}"
+          if [ -z "$tag" ]; then tag="${GITHUB_REF#refs/tags/}"; fi
           version="$(node -p "require('./manifest.json').version")"
           if [ "$tag" != "$version" ]; then
             echo "Tag $tag does not match manifest.json version $version" >&2
             exit 1
           fi
+          echo "tag=$tag" >> "$GITHUB_OUTPUT"
 
       - name: Build plugin
+        env:
+          TASK_POOL_OUT: dist
         run: |
           npm ci --legacy-peer-deps
           npm run build
@@ -42,9 +54,14 @@ jobs:
             dist/manifest.json
             dist/styles.css
 
-      - name: Create draft release
+      - name: Create draft release or update assets
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_REPO: ${{ github.repository }}
         run: |
-          tag="${GITHUB_REF#refs/tags/}"
-          gh release create "$tag" --title="$tag" --draft dist/main.js dist/manifest.json dist/styles.css
+          tag="${{ steps.tag.outputs.tag }}"
+          if gh release view "$tag" >/dev/null 2>&1; then
+            gh release upload "$tag" dist/main.js dist/manifest.json dist/styles.css --clobber
+          else
+            gh release create "$tag" --title="$tag" --draft dist/main.js dist/manifest.json dist/styles.css
+          fi
