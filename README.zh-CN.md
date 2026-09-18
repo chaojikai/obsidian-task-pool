@@ -81,6 +81,10 @@
 
 Task Pool 不在库外存任何数据，也不联网。
 
+## 反馈
+
+Bug 和想法都欢迎提到 [GitHub Issues](https://github.com/chaojikai/obsidian-task-pool/issues)。
+
 ## 开发
 
 ```bash

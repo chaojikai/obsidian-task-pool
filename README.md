@@ -81,6 +81,10 @@ List the notes you keep open all day. Their tabs are pinned automatically, shrin
 
 Task Pool stores nothing outside your vault and never talks to the network.
 
+## Feedback
+
+Bug reports and ideas are welcome in [GitHub Issues](https://github.com/chaojikai/obsidian-task-pool/issues).
+
 ## Development
 
 ```bash
