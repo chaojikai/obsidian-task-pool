@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.1.1 - 2026-09-18
+
+- Fix: the plugin threw and failed to load when the workspace had background tabs that Obsidian had not loaded yet (deferred views, Obsidian 1.7.2 and later)
+- `minAppVersion` is now 1.7.2, the release that made `Workspace.revealLeaf` awaitable
+- Build DOM through Obsidian's `createEl` helpers, use cross-window safe type checks, drop the deprecated `setDynamicTooltip`, and tighten a few types
+
 ## 0.1.0 - 2026-09-15
 
 First public release.

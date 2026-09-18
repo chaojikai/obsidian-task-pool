@@ -135,7 +135,7 @@ body.tp-dragging, body.tp-dragging * { cursor: grabbing !important; user-select:
   animation: tp-moved-flash 700ms ease-out;
 }
 @keyframes tp-moved-flash {
-  0% { background-color: var(--background-modifier-hover); background-color: color-mix(in srgb, var(--interactive-accent) 24%, transparent); }
+  0% { background-color: color-mix(in srgb, var(--interactive-accent) 24%, transparent); }
   100% { background-color: transparent; }
 }
 .tp-fold-toggle { animation: tp-fade-in 260ms ease-out; }

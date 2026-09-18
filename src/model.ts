@@ -96,7 +96,7 @@ export function parseDoc(lines: string[]): DocModel {
   }
 
   // Lines inside fenced code blocks are skipped
-  const inFence: boolean[] = new Array(lines.length).fill(false);
+  const inFence: boolean[] = new Array<boolean>(lines.length).fill(false);
   const fences: Array<{ start: number; end: number }> = [];
   let fence: string | null = null;
   for (let i = frontmatterEnd + 1; i < lines.length; i++) {

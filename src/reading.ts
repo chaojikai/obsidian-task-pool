@@ -50,8 +50,9 @@ export function readingPostProcessor(host: ReadingHost) {
             const hiddenItems = run.slice(0, run.length - keep);
             const key = `${path}::${hiddenItems[0].textContent?.trim().slice(0, 80) ?? ""}`;
             const expanded = host.expanded.has(key);
-            const toggle = document.createElement("li");
-            toggle.className = "tp-fold-toggle tp-fold-toggle-reading" + (expanded ? " is-expanded" : " is-collapsed");
+            const toggle = createEl("li", {
+              cls: "tp-fold-toggle tp-fold-toggle-reading " + (expanded ? "is-expanded" : "is-collapsed"),
+            });
             const render = () => {
               const isExp = host.expanded.has(key);
               toggle.empty();

@@ -82,8 +82,7 @@ export default class TaskPoolPlugin extends Plugin {
 
   onunload(): void {
     this.pins.destroy();
-    for (const leaf of this.app.workspace.getLeavesOfType("markdown")) {
-      const view = leaf.view as MarkdownView;
+    for (const view of this.markdownViews()) {
       this.tabBars.get(view)?.destroy();
       this.tabBars.delete(view);
     }
@@ -110,7 +109,7 @@ export default class TaskPoolPlugin extends Plugin {
     const file = this.app.vault.getAbstractFileByPath(path);
     if (!(file instanceof TFile)) return false;
     const fm = this.app.metadataCache.getFileCache(file)?.frontmatter;
-    const v = fm?.[this.settings.frontmatterKey];
+    const v: unknown = fm?.[this.settings.frontmatterKey];
     if (v === true || v === "true" || v === 1) return true;
     if (v === false || v === "false" || v === 0) return false;
     if (this.settings.enabledPaths.includes(path)) return true;
@@ -121,8 +120,7 @@ export default class TaskPoolPlugin extends Plugin {
 
   private countSectionsFromCache(file: TFile): number {
     // Without an editor model (reading view and so on), estimate from the open view's text
-    for (const leaf of this.app.workspace.getLeavesOfType("markdown")) {
-      const view = leaf.view as MarkdownView;
+    for (const view of this.markdownViews()) {
       if (view.file?.path === file.path) return parseDoc(view.getViewData().split("\n")).sections.length;
     }
     return 0;
@@ -143,9 +141,17 @@ export default class TaskPoolPlugin extends Plugin {
   }
 
   // ---- View sync ----
-  private markdownViewFor(cm: EditorView): MarkdownView | null {
+  /** Loaded markdown views only; a deferred leaf's view is a placeholder without editor methods */
+  private markdownViews(): MarkdownView[] {
+    const out: MarkdownView[] = [];
     for (const leaf of this.app.workspace.getLeavesOfType("markdown")) {
-      const view = leaf.view as MarkdownView;
+      if (leaf.view instanceof MarkdownView) out.push(leaf.view);
+    }
+    return out;
+  }
+
+  private markdownViewFor(cm: EditorView): MarkdownView | null {
+    for (const view of this.markdownViews()) {
       if (this.cmOf(view) === cm) return view;
     }
     return null;
@@ -156,7 +162,7 @@ export default class TaskPoolPlugin extends Plugin {
   }
 
   refreshAll(): void {
-    for (const leaf of this.app.workspace.getLeavesOfType("markdown")) this.syncView(leaf.view as MarkdownView);
+    for (const view of this.markdownViews()) this.syncView(view);
     this.pins.sync();
   }
 
@@ -201,8 +207,7 @@ export default class TaskPoolPlugin extends Plugin {
   }
 
   private refreshFile(file: TFile): void {
-    for (const leaf of this.app.workspace.getLeavesOfType("markdown")) {
-      const view = leaf.view as MarkdownView;
+    for (const view of this.markdownViews()) {
       if (view.file?.path === file.path) this.syncView(view);
     }
   }
@@ -232,7 +237,7 @@ export default class TaskPoolPlugin extends Plugin {
     }
     if (!bar) {
       bar = new TabBar(view, {
-        onSelect: (v, key) => this.setActiveTab(v, key),
+        onSelect: (v, key) => void this.setActiveTab(v, key),
         onAdd: (v) => this.addTaskToActive(v),
         showCounts: () => this.settings.showCounts,
       });

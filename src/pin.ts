@@ -81,7 +81,7 @@ export class PinManager {
       const seen = new Set<WorkspaceLeaf>();
       const byParent = new Map<WorkspaceTabs, WorkspaceLeaf[]>();
       const collect = (leaf: WorkspaceLeaf) => {
-        const parent = leaf.parent as WorkspaceTabs;
+        const parent = leaf.parent;
         const list = byParent.get(parent) ?? [];
         list.push(leaf);
         byParent.set(parent, list);

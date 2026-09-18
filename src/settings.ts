@@ -62,7 +62,7 @@ export class TaskPoolSettingTab extends PluginSettingTab {
       .setName(t.sKeepLast)
       .setDesc(t.sKeepLastDesc)
       .addSlider((sl) =>
-        sl.setLimits(0, 10, 1).setValue(s.keepLast).setDynamicTooltip().onChange(async (v) => {
+        sl.setLimits(0, 10, 1).setValue(s.keepLast).onChange(async (v) => {
           s.keepLast = v;
           await save();
         })

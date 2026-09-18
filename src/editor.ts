@@ -35,8 +35,7 @@ class FoldToggleWidget extends WidgetType {
     return other.runKey === this.runKey && other.total === this.total && other.hidden === this.hidden && other.collapsed === this.collapsed;
   }
   toDOM(view: EditorView): HTMLElement {
-    const el = document.createElement("div");
-    el.className = "tp-fold-toggle" + (this.collapsed ? " is-collapsed" : " is-expanded");
+    const el = createDiv({ cls: "tp-fold-toggle " + (this.collapsed ? "is-collapsed" : "is-expanded") });
     const arrow = el.createSpan({ cls: "tp-fold-arrow" });
     arrow.setText(this.collapsed ? "▸" : "▾");
     const label = el.createSpan({ cls: "tp-fold-label" });

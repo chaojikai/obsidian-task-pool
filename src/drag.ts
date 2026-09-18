@@ -37,12 +37,9 @@ class DragHandler implements PluginValue {
   scrollDir = 0;
 
   constructor(readonly view: EditorView, readonly host: DragHost) {
-    this.handle = document.createElement("div");
-    this.handle.className = "tp-drag-handle";
-    this.handle.setAttribute("aria-label", t.dragHandle);
+    this.handle = createDiv({ cls: "tp-drag-handle", attr: { "aria-label": t.dragHandle } });
     setIcon(this.handle, "grip-vertical");
-    this.indicator = document.createElement("div");
-    this.indicator.className = "tp-drop-indicator";
+    this.indicator = createDiv({ cls: "tp-drop-indicator" });
     view.dom.appendChild(this.handle);
     view.dom.appendChild(this.indicator);
 
@@ -145,7 +142,7 @@ class DragHandler implements PluginValue {
 
   lineElementAt(pos: number): HTMLElement | null {
     const dom = this.view.domAtPos(pos);
-    const node = dom.node instanceof HTMLElement ? dom.node : dom.node.parentElement;
+    const node = dom.node.instanceOf(HTMLElement) ? dom.node : dom.node.parentElement;
     return (node?.closest(".cm-line") as HTMLElement | null) ?? null;
   }
 
@@ -162,8 +159,7 @@ class DragHandler implements PluginValue {
     try { this.handle.setPointerCapture(e.pointerId); } catch { /* pointer capture is unsupported in some environments */ }
     document.body.classList.add("tp-dragging");
     this.handle.classList.add("is-dragging");
-    this.ghost = document.createElement("div");
-    this.ghost.className = "tp-drag-ghost";
+    this.ghost = createDiv({ cls: "tp-drag-ghost" });
     const label = (blockAtLine(model, range.start)?.text ?? block.text).trim();
     const short = label.length > 60 ? label.slice(0, 60) + "…" : label || "…";
     this.ghost.setText(count > 1 ? `${short}  +${count - 1}` : short);

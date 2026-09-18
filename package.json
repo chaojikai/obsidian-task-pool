@@ -1,6 +1,6 @@
 {
   "name": "obsidian-task-pool",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Obsidian plugin: fold completed tasks, tag tabs, drag list items",
   "main": "main.js",
   "private": true,

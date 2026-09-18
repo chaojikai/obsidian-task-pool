@@ -14,10 +14,9 @@ export class TabBar {
 
   constructor(private view: MarkdownView, private host: TabBarHost) {
     for (const sel of [".markdown-source-view", ".markdown-reading-view"]) {
-      const container = view.containerEl.querySelector(sel) as HTMLElement | null;
+      const container = view.containerEl.querySelector<HTMLElement>(sel);
       if (!container) continue;
-      const el = document.createElement("div");
-      el.className = "tp-tabbar";
+      const el = createDiv({ cls: "tp-tabbar" });
       container.insertBefore(el, container.firstChild);
       this.els.push(el);
     }
