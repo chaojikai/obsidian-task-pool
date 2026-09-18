@@ -54,14 +54,29 @@ jobs:
             dist/manifest.json
             dist/styles.css
 
-      - name: Create draft release or update assets
+      - name: Extract release notes for this version
+        id: notes
+        run: |
+          tag="${{ steps.tag.outputs.tag }}"
+          # The CHANGELOG section for this version, without its own heading
+          awk -v tag="$tag" '
+            $0 ~ "^## " tag " " || $0 == "## " tag { found = 1; next }
+            found && /^## / { exit }
+            found { print }
+          ' CHANGELOG.md > notes.md
+          if [ ! -s notes.md ]; then echo "Release $tag" > notes.md; fi
+          cat notes.md
+
+      - name: Publish release with assets
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GH_REPO: ${{ github.repository }}
         run: |
           tag="${{ steps.tag.outputs.tag }}"
+          # Publish directly rather than as a draft: publishing a draft from the
+          # web UI drops assets uploaded by this workflow.
           if gh release view "$tag" >/dev/null 2>&1; then
             gh release upload "$tag" dist/main.js dist/manifest.json dist/styles.css --clobber
           else
-            gh release create "$tag" --title="$tag" --draft dist/main.js dist/manifest.json dist/styles.css
+            gh release create "$tag" --title="$tag" --notes-file notes.md dist/main.js dist/manifest.json dist/styles.css
           fi
