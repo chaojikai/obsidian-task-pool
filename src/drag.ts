@@ -1,15 +1,17 @@
 // Notion-style block dragging: list items, paragraphs, headings and fenced blocks get a handle on hover (or on the cursor line on mobile);
-// drag it elsewhere or onto a tab. Select several blocks first and they move together
+// drag it elsewhere or onto a tab. Select several blocks first and they move together.
+// The same gutter slot carries a plus button on blank lines, which turns the line into a task
 // Pointer Events give mouse and touch a single code path
 import { EditorView, ViewPlugin, ViewUpdate, PluginValue } from "@codemirror/view";
 import { Platform, setIcon } from "obsidian";
 import { getModel } from "./editor";
-import { Block, DocModel, LineRange, blockAtLine, isBlank, sectionAtLine } from "./model";
+import { Block, DocModel, LineRange, blockAtLine, isBlank, itemAtLine, parseListLine, sectionAtLine } from "./model";
 import { MoveOptions, MoveTarget, isNoopMove, moveItem } from "./moves";
 import { t } from "./i18n";
 
 export interface DragHost {
   isDragEnabled(view: EditorView): boolean;
+  isQuickAddEnabled(view: EditorView): boolean;
   dropOnTab(view: EditorView, model: DocModel, range: LineRange, tabKey: string, opts: MoveOptions): void;
 }
 
@@ -27,11 +29,21 @@ interface DragState {
 const HANDLE_H = 20;
 const HANDLE_GAP = 24;
 
+/** Where the gutter affordance goes, and which one it is: a drag handle on a block, a plus on a blank line */
+interface Gutter {
+  kind: "handle" | "add";
+  left: number;
+  top: number;
+  line: number;
+}
+
 class DragHandler implements PluginValue {
   handle: HTMLElement;
+  adder: HTMLElement;
   indicator: HTMLElement;
   ghost: HTMLElement | null = null;
   hoverLine = -1;
+  addLine = -1;
   drag: DragState | null = null;
   scrollTimer: number | null = null;
   scrollDir = 0;
@@ -39,8 +51,11 @@ class DragHandler implements PluginValue {
   constructor(readonly view: EditorView, readonly host: DragHost) {
     this.handle = createDiv({ cls: "tp-drag-handle", attr: { "aria-label": t.dragHandle } });
     setIcon(this.handle, "grip-vertical");
+    this.adder = createDiv({ cls: "tp-line-add", attr: { "aria-label": t.addTaskHere } });
+    setIcon(this.adder, "plus");
     this.indicator = createDiv({ cls: "tp-drop-indicator" });
     view.dom.appendChild(this.handle);
+    view.dom.appendChild(this.adder);
     view.dom.appendChild(this.indicator);
 
     view.dom.addEventListener("pointermove", this.onHover);
@@ -50,6 +65,9 @@ class DragHandler implements PluginValue {
     this.handle.addEventListener("pointermove", this.onDragMove);
     this.handle.addEventListener("pointerup", this.onDragEnd);
     this.handle.addEventListener("pointercancel", this.onDragCancel);
+    // Keep the editor's focus and selection where they are; the click below does the work
+    this.adder.addEventListener("pointerdown", (e) => { e.preventDefault(); e.stopPropagation(); });
+    this.adder.addEventListener("click", this.onAddClick);
   }
 
   update(u: ViewUpdate): void {
@@ -58,8 +76,8 @@ class DragHandler implements PluginValue {
     if (u.selectionSet || u.docChanged || u.viewportChanged || u.geometryChanged) {
       const line = u.state.doc.lineAt(u.state.selection.main.head).number - 1;
       u.view.requestMeasure({
-        read: () => this.measureHandle(line),
-        write: (m) => this.applyHandle(m),
+        read: () => this.measureGutter(line),
+        write: (m) => this.applyGutter(m),
       });
     }
   }
@@ -70,19 +88,35 @@ class DragHandler implements PluginValue {
     this.view.dom.removeEventListener("pointerleave", this.onLeave);
     this.view.scrollDOM.removeEventListener("scroll", this.onScroll);
     this.handle.remove();
+    this.adder.remove();
     this.indicator.remove();
   }
 
-  // ---- Handle placement ----
-  private measureHandle(lineIdx: number): { left: number; top: number; line: number } | null {
-    if (!this.host.isDragEnabled(this.view)) return null;
-    const model = getModel(this.view);
-    const block = blockAtLine(model, lineIdx);
-    // A list item only gets a handle on its first line; other blocks anchor the handle to their first line
-    if (!block || (block.kind === "list" && block.start !== lineIdx)) return null;
-    lineIdx = block.start;
+  // ---- Gutter placement ----
+  /** Whether a blank line may become a task: outside frontmatter, fences and the body of another list item */
+  private canQuickAdd(model: DocModel, lineIdx: number): boolean {
+    if (!this.host.isQuickAddEnabled(this.view)) return false;
+    if (lineIdx <= model.frontmatterEnd) return false;
+    if (model.fences.some((f) => lineIdx >= f.start && lineIdx <= f.end)) return false;
+    return !itemAtLine(model, lineIdx);
+  }
+
+  private measureGutter(lineIdx: number): Gutter | null {
     const doc = this.view.state.doc;
-    if (lineIdx >= doc.lines) return null;
+    if (lineIdx < 0 || lineIdx >= doc.lines) return null;
+    const model = getModel(this.view);
+    let kind: Gutter["kind"];
+    if (isBlank(doc.line(lineIdx + 1).text)) {
+      if (!this.canQuickAdd(model, lineIdx)) return null;
+      kind = "add";
+    } else {
+      if (!this.host.isDragEnabled(this.view)) return null;
+      const block = blockAtLine(model, lineIdx);
+      // A list item only gets a handle on its first line; other blocks anchor the handle to their first line
+      if (!block || (block.kind === "list" && block.start !== lineIdx)) return null;
+      lineIdx = block.start;
+      kind = "handle";
+    }
     const line = doc.line(lineIdx + 1);
     const coords = this.view.coordsAtPos(line.from);
     if (!coords) return null;
@@ -96,24 +130,29 @@ class DragHandler implements PluginValue {
     }
     const top = lineRect ? lineRect.top : coords.top;
     return {
+      kind,
       left: bulletX - editorRect.left - HANDLE_GAP,
       top: top - editorRect.top + (this.view.defaultLineHeight - HANDLE_H) / 2,
       line: lineIdx,
     };
   }
 
-  private applyHandle(m: { left: number; top: number; line: number } | null): void {
+  private applyGutter(m: Gutter | null): void {
     if (!m) { this.hideHandle(); return; }
-    this.handle.style.left = `${m.left}px`;
-    this.handle.style.top = `${m.top}px`;
-    this.handle.classList.add("is-visible");
-    this.hoverLine = m.line;
+    const el = m.kind === "handle" ? this.handle : this.adder;
+    const other = m.kind === "handle" ? this.adder : this.handle;
+    other.classList.remove("is-visible");
+    el.style.left = `${m.left}px`;
+    el.style.top = `${m.top}px`;
+    el.classList.add("is-visible");
+    this.hoverLine = m.kind === "handle" ? m.line : -1;
+    this.addLine = m.kind === "add" ? m.line : -1;
   }
 
   onHover = (e: PointerEvent): void => {
     if (this.drag || e.pointerType !== "mouse") return;
-    if (!this.host.isDragEnabled(this.view)) { this.hideHandle(); return; }
-    if ((e.target as HTMLElement).closest?.(".tp-drag-handle")) return;
+    if (!this.host.isDragEnabled(this.view) && !this.host.isQuickAddEnabled(this.view)) { this.hideHandle(); return; }
+    if ((e.target as HTMLElement).closest?.(".tp-drag-handle, .tp-line-add")) return;
     const pos = this.view.posAtCoords({ x: e.clientX, y: e.clientY }, false);
     if (pos == null) { this.hideHandle(); return; }
     const line = this.view.state.doc.lineAt(pos);
@@ -123,7 +162,7 @@ class DragHandler implements PluginValue {
     if (!rect) { this.hideHandle(); return; }
     const bottom = Math.min(rect.bottom, rect.top + this.view.defaultLineHeight * 1.6);
     if (e.clientY < rect.top - 2 || e.clientY > bottom + 2) { this.hideHandle(); return; }
-    this.applyHandle(this.measureHandle(lineIdx));
+    this.applyGutter(this.measureGutter(lineIdx));
   };
 
   onLeave = (): void => {
@@ -132,13 +171,48 @@ class DragHandler implements PluginValue {
 
   onScroll = (): void => {
     // Scrolling invalidates the handle position, so only hide it visually; keep hoverLine so an async scroll event cannot interrupt a press that just started
-    if (!this.drag && !Platform.isMobile) this.handle.classList.remove("is-visible");
+    if (this.drag || Platform.isMobile) return;
+    this.handle.classList.remove("is-visible");
+    this.adder.classList.remove("is-visible");
   };
 
   hideHandle(): void {
     this.handle.classList.remove("is-visible");
+    this.adder.classList.remove("is-visible");
     this.hoverLine = -1;
+    this.addLine = -1;
   }
+
+  // ---- Quick add ----
+  /** Turn the blank line under the plus into an empty task, matching the indent and marker of the list above it */
+  onAddClick = (e: MouseEvent): void => {
+    e.preventDefault();
+    e.stopPropagation();
+    const lineIdx = this.addLine;
+    const doc = this.view.state.doc;
+    if (lineIdx < 0 || lineIdx >= doc.lines) return;
+    let indent = 0;
+    let marker = "-";
+    for (let i = lineIdx - 1; i >= 0; i--) {
+      const text = doc.line(i + 1).text;
+      if (isBlank(text)) continue;
+      const parsed = parseListLine(text);
+      if (parsed) {
+        indent = parsed.indent;
+        if (/^[-*+]$/.test(parsed.marker)) marker = parsed.marker; // an ordered marker would need renumbering
+      }
+      break;
+    }
+    const line = doc.line(lineIdx + 1);
+    const insert = " ".repeat(indent) + marker + " [ ] ";
+    this.hideHandle();
+    this.view.dispatch({
+      changes: { from: line.from, to: line.to, insert },
+      selection: { anchor: line.from + insert.length },
+      scrollIntoView: true,
+    });
+    this.view.focus();
+  };
 
   lineElementAt(pos: number): HTMLElement | null {
     const dom = this.view.domAtPos(pos);

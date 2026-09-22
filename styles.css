@@ -1,18 +1,23 @@
 /* ===== Tab bar ===== */
+/* The tabs sit on a tinted surface so the bar reads as one block instead of floating over the note */
 .tp-tabbar {
   flex: 0 0 auto;
-  padding: 6px 24px;
-  border-bottom: 1px solid var(--background-modifier-border);
+  padding: 8px 24px;
   background: var(--background-primary);
   font-size: var(--font-ui-small);
   z-index: 5;
 }
 .tp-tabbar-inner {
+  position: relative;
   display: flex;
   flex-wrap: wrap;
   align-items: center;
   gap: 4px;
   width: 100%;
+  padding: 4px;
+  border-radius: var(--radius-m);
+  background: var(--background-secondary);
+  border: 1px solid var(--background-modifier-border);
 }
 .is-readable-line-width .tp-tabbar-inner {
   max-width: var(--file-line-width);
@@ -23,16 +28,24 @@
   align-items: center;
   gap: 6px;
   padding: 3px 10px;
-  border-radius: var(--radius-m);
+  border-radius: var(--radius-s);
   color: var(--text-muted);
   cursor: pointer;
   user-select: none;
   line-height: 1.5;
   transition: background-color 80ms ease, color 80ms ease;
+  touch-action: none; /* the bar never scrolls, so a touch drag can reorder tabs */
 }
 .tp-tab:hover { background: var(--background-modifier-hover); color: var(--text-normal); }
-.tp-tab.is-active { background: var(--background-modifier-active-hover, var(--background-secondary-alt)); color: var(--text-normal); font-weight: 600; }
+/* Active tab lifts off the tinted surface, like a segmented control */
+.tp-tab.is-active {
+  background: var(--background-primary);
+  box-shadow: var(--shadow-s);
+  color: var(--text-normal);
+  font-weight: 600;
+}
 .tp-tab.is-drop-target { box-shadow: 0 0 0 2px var(--interactive-accent) inset; background: var(--background-modifier-hover); color: var(--text-normal); }
+.tp-tab.is-tab-dragging { opacity: 0.4; }
 .tp-tab-sub { font-size: 0.85em; color: var(--text-faint); font-weight: 400; }
 .tp-tab-count {
   font-size: 0.78em;
@@ -50,6 +63,16 @@
 .tp-tab-add { margin-left: auto; padding: 4px; border-radius: var(--radius-s); color: var(--text-muted); }
 .tp-tab-add:hover { background: var(--background-modifier-hover); color: var(--text-normal); }
 .tp-tab-add svg { width: 16px; height: 16px; }
+
+/* Where a dragged tab would land */
+.tp-tab-marker {
+  position: absolute;
+  width: 2px;
+  border-radius: 1px;
+  background: var(--interactive-accent);
+  pointer-events: none;
+}
+body.tp-tab-dragging, body.tp-tab-dragging * { cursor: grabbing !important; user-select: none !important; }
 
 /* ===== Fold completed ===== */
 .tp-fold-toggle {
@@ -88,6 +111,23 @@
 .tp-drag-handle .svg-icon { width: 14px; height: 14px; }
 .tp-drag-handle:hover { background: var(--background-modifier-hover); color: var(--text-muted); }
 .tp-drag-handle.is-dragging { cursor: grabbing; }
+
+/* Quick add: takes the gutter slot on blank lines, where there is nothing to drag */
+.tp-line-add {
+  position: absolute;
+  width: 18px;
+  height: 20px;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  border-radius: 4px;
+  color: var(--text-faint);
+  cursor: pointer;
+  z-index: 30;
+}
+.tp-line-add.is-visible { display: flex; }
+.tp-line-add .svg-icon { width: 14px; height: 14px; }
+.tp-line-add:hover { background: var(--background-modifier-hover); color: var(--text-accent); }
 body.tp-dragging, body.tp-dragging * { cursor: grabbing !important; user-select: none !important; }
 .tp-drop-indicator {
   position: absolute;
@@ -149,7 +189,7 @@ body.tp-dragging, body.tp-dragging * { cursor: grabbing !important; user-select:
 
 /* Touch: the handle blocks native scrolling so a drag can start */
 .tp-drag-handle { touch-action: none; }
-.is-mobile .tp-drag-handle { width: 24px; height: 24px; }
+.is-mobile .tp-drag-handle, .is-mobile .tp-line-add { width: 24px; height: 24px; }
 
 /* ===== Persistent tabs ===== */
 /* The main area hides markdown tab icons by default; pinned tabs always show theirs */

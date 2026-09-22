@@ -180,9 +180,10 @@ export function parseDoc(lines: string[]): DocModel {
     for (const s of sections) if (line >= s.start && line <= s.end) return s;
     return null;
   };
+  // An empty checkbox line is still being written, so it stays out of the counts
   const countTasks = (item: ListItem) => {
     const sec = sectionAt(item.start);
-    if (!sec || item.task === null) return;
+    if (!sec || item.task === null || item.text.length === 0) return;
     if (item.checked) sec.done++; else sec.open++;
   };
   for (const item of items) countTasks(item);
@@ -192,7 +193,7 @@ export function parseDoc(lines: string[]): DocModel {
     if (!sec) continue;
     for (let l = item.start + 1; l <= item.end; l++) {
       const p = parseListLine(lines[l]);
-      if (!p || p.task === null) continue;
+      if (!p || p.task === null || p.text.trim().length === 0) continue;
       if (p.task !== " ") sec.done++; else sec.open++;
     }
   }

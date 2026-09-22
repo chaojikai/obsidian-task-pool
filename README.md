@@ -14,13 +14,17 @@ Once a run of completed tasks grows past a limit (3 by default), the older ones 
 
 ### Tag sections become tabs
 
-Write a line that contains only tags, such as `#Focus #macOS`, and everything below it is a section. As soon as a note has two or more sections it gets a tab bar with open-task counts. Pick a tab to see just that product; `+` adds a task at the end of it. A path list or a `task-tabs` note property can force the bar on or off.
+Write a line that contains only tags, such as `#Focus #macOS`, and everything below it is a section. As soon as a note has two or more sections it gets a tab bar with open-task counts. Pick a tab to see just that product; `+` adds a task at the end of it. Drag a tab to a new spot in the bar and its whole section moves with it in the note. A path list or a `task-tabs` note property can force the bar on or off.
 
 ### Drag blocks like cards
 
 Hover any list item, paragraph, heading or code block and a ⋮⋮ handle appears. Drop it anywhere in the note, or onto a tab to move it into that section. Select several blocks first and they travel together. Children move with their parent, paragraphs keep their blank lines, and a single undo reverts the whole move.
 
 ![Dragging a task towards another section, with the drop indicator and the drag ghost](docs/drag.png)
+
+### A task on any blank line
+
+Pressing Enter on a task continues the list, but a blank line you arrived at some other way does not. Hover one and a small `+` appears in the gutter: click it and the line becomes an empty task, indented to match the list above it.
 
 ### Checked tasks sort themselves
 
@@ -32,6 +36,7 @@ List the notes you keep open all day. Their tabs are pinned automatically, shrin
 
 ### Small touches
 
+- A task with no text yet is left out of the tab counts, so a checkbox you are still writing does not read as an open task.
 - A moved block flashes briefly where it lands, and the fold line fades in when its count changes, so re-sorted tasks are easy to follow. Both respect the system's reduced-motion setting.
 - Commands for everything: move list item up / down (with children), move to section, switch tab, next / previous tab, expand / collapse completed tasks, pin / unpin the current note.
 - English and Chinese UI, following Obsidian's language.
@@ -67,6 +72,7 @@ List the notes you keep open all day. Their tabs are pinned automatically, shrin
 | Property key | `task-tabs` | `true` forces the tab bar on, `false` forces it off |
 | Show open count on tabs | On | |
 | Drag scope | All notes | Same options as fold scope |
+| Quick add on blank lines | All notes | Where the `+` appears next to a blank line; same options as fold scope |
 | Pinned notes | empty | One vault path per line; "Pin / unpin current note" writes here too, and unpinning inside Obsidian removes the entry |
 | Tab style | Icon only | Icon only / compact / default |
 | Keep at the front of the tab bar | On | Pinned tabs stay first in their tab group, so Obsidian's "Go to tab #1" always lands on them |
@@ -76,6 +82,7 @@ List the notes you keep open all day. Their tabs are pinned automatically, shrin
 ## Roadmap
 
 - **0.1** – first public release: folding, tabs, block dragging, re-sort on check, pinned notes.
+- **0.2** – reorderable tabs, quick add on blank lines, a clearer tab bar.
 - **0.x** – refinements driven by feedback: mobile drag tuning, more section actions, keyboard-only workflows. Minor versions add features, patch versions fix bugs.
 - **1.0** – listed in the Obsidian community plugin directory.
 

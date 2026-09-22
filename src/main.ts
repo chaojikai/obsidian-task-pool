@@ -7,7 +7,7 @@ import { TabBar } from "./tabs";
 import { readingPostProcessor } from "./reading";
 import { PinManager } from "./pin";
 import { DocModel, ListItem, Section, itemAtLine, parseDoc, parseListLine, sectionAtLine, sectionByKey } from "./model";
-import { moveItem, moveItemToSection, sectionAppendTarget } from "./moves";
+import { moveItem, moveItemToSection, moveSection, sectionAppendTarget } from "./moves";
 import { t } from "./i18n";
 
 const AUTO_MIN_SECTIONS = 2;
@@ -47,6 +47,7 @@ export default class TaskPoolPlugin extends Plugin {
       flashField,
       createDragPlugin({
         isDragEnabled: (view) => this.scopeAllows(this.settings.dragScope, this.markdownViewFor(view)),
+        isQuickAddEnabled: (view) => this.scopeAllows(this.settings.quickAddScope, this.markdownViewFor(view)),
         dropOnTab: (view, model, range, key, opts) => {
           const section = sectionByKey(model, key);
           if (!section) return;
@@ -86,7 +87,7 @@ export default class TaskPoolPlugin extends Plugin {
       this.tabBars.get(view)?.destroy();
       this.tabBars.delete(view);
     }
-    document.body.classList.remove("tp-dragging");
+    document.body.classList.remove("tp-dragging", "tp-tab-dragging");
     document.querySelectorAll(".tp-drag-ghost").forEach((el) => el.remove());
   }
 
@@ -239,6 +240,8 @@ export default class TaskPoolPlugin extends Plugin {
       bar = new TabBar(view, {
         onSelect: (v, key) => void this.setActiveTab(v, key),
         onAdd: (v) => this.addTaskToActive(v),
+        onReorder: (v, key, beforeKey) => this.reorderSection(v, key, beforeKey),
+        canReorder: (v) => v.getMode() !== "preview" && !!this.cmOf(v)?.state.field(taskPoolField, false),
         showCounts: () => this.settings.showCounts,
       });
       this.tabBars.set(view, bar);
@@ -267,6 +270,22 @@ export default class TaskPoolPlugin extends Plugin {
       }
     }
     if (view.getMode() === "preview") view.previewMode.rerender(true);
+  }
+
+  /** Dragging a tab rewrites the note so the sections end up in the tab bar's new order */
+  private reorderSection(view: MarkdownView, key: string, beforeKey: string | null): void {
+    const cm = this.cmOf(view);
+    if (!cm || !cm.state.field(taskPoolField, false) || view.getMode() === "preview") {
+      new Notice(t.reorderNeedsSource);
+      return;
+    }
+    const model = getModel(cm);
+    const from = sectionByKey(model, key);
+    if (!from) return;
+    if (moveSection(cm, model, from, sectionByKey(model, beforeKey))) {
+      this.syncView(view);
+      new Notice(t.sectionMoved(key));
+    }
   }
 
   private addTaskToActive(view: MarkdownView): void {

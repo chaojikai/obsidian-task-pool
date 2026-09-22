@@ -14,6 +14,7 @@ export interface TaskPoolSettings {
   frontmatterKey: string;
   showCounts: boolean;
   dragScope: Scope;
+  quickAddScope: Scope;
   autoArchive: boolean;
   activeTabs: Record<string, string>;
   pinnedPaths: string[];
@@ -31,6 +32,7 @@ export const DEFAULT_SETTINGS: TaskPoolSettings = {
   frontmatterKey: "task-tabs",
   showCounts: true,
   dragScope: "all",
+  quickAddScope: "all",
   autoArchive: true,
   activeTabs: {},
   pinnedPaths: [],
@@ -179,6 +181,15 @@ export class TaskPoolSettingTab extends PluginSettingTab {
       .addDropdown((d) =>
         d.addOptions(scopeOptions).setValue(s.dragScope).onChange(async (v) => {
           s.dragScope = v as Scope;
+          await save();
+        })
+      );
+    new Setting(containerEl)
+      .setName(t.sQuickAddScope)
+      .setDesc(t.sQuickAddScopeDesc)
+      .addDropdown((d) =>
+        d.addOptions(scopeOptions).setValue(s.quickAddScope).onChange(async (v) => {
+          s.quickAddScope = v as Scope;
           await save();
         })
       );

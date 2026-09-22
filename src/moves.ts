@@ -100,6 +100,27 @@ export function sectionAppendTarget(model: DocModel, section: Section, exclude?:
   return { line: last.end + 1, indent: last.indent };
 }
 
+/**
+ * Reorder whole tag sections: move `from` (its tag line and everything up to the next tag line)
+ * in front of `before`, or to the end of the note when `before` is null
+ */
+export function moveSection(view: EditorView, model: DocModel, from: Section, before: Section | null): boolean {
+  const sections = model.sections;
+  const idx = sections.indexOf(from);
+  const at = before ? sections.indexOf(before) : sections.length;
+  if (idx < 0 || at < 0 || at === idx || at === idx + 1) return false;
+  const lines = model.lines;
+  // Trailing blank lines belong to the gap between sections, not to the section being moved
+  const trimmedEnd = (s: Section): number => {
+    let e = s.end;
+    while (e > s.start && isBlank(lines[e])) e--;
+    return e;
+  };
+  const range: LineRange = { start: from.start, end: trimmedEnd(from), indent: 0 };
+  const line = before ? before.tagLine : trimmedEnd(sections[sections.length - 1]) + 1;
+  return moveItem(view, model, range, { line, indent: 0 }, { separate: true, follow: false });
+}
+
 export function moveItemToSection(view: EditorView, model: DocModel, range: LineRange, section: Section, opts: MoveOptions = {}): boolean {
   const target = sectionAppendTarget(model, section, range);
   if (opts.separate) target.indent = range.indent; // paragraphs keep their own indent

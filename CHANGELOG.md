@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.2.0 - 2026-09-22
+
+- Reorder sections by dragging their tabs: drop a tab between two others and the section moves with it in the note
+- A plus appears in the gutter of a blank line; clicking it turns the line into a task, indented like the list above, for when the cursor did not arrive there from another task
+- Tasks with no text are left out of the tab counts, so a checkbox you are still writing does not show up as an open task
+- The tab bar now sits on a tinted surface with the active tab lifted off it, so it reads as one block instead of floating over the note
+
 ## 0.1.1 - 2026-09-18
 
 - Fix: the plugin threw and failed to load when the workspace had background tabs that Obsidian had not loaded yet (deferred views, Obsidian 1.7.2 and later)
