@@ -14,7 +14,7 @@ Once a run of completed tasks grows past a limit (3 by default), the older ones 
 
 ### Tag sections become tabs
 
-Write a line that contains only tags, such as `#Focus #macOS`, and everything below it is a section. As soon as a note has two or more sections it gets a tab bar with open-task counts. Pick a tab to see just that product; `+` adds a task at the end of it. Drag a tab to a new spot in the bar and its whole section moves with it in the note. A path list or a `task-tabs` note property can force the bar on or off.
+Write a line that contains only tags, such as `#Focus #macOS`, and everything below it is a section. As soon as a note has two or more sections it gets a tab bar with open-task counts. Each section is drawn on its own light surface, so the groups read apart in the All view. Pick a tab to see just that product; `+` adds a task at the end of it. Drag a tab to a new spot in the bar and its whole section moves with it in the note. A path list or a `task-tabs` note property can force the bar on or off.
 
 ### Drag blocks like cards
 
@@ -71,6 +71,7 @@ List the notes you keep open all day. Their tabs are pinned automatically, shrin
 | Always enabled for | empty | One vault path per line |
 | Property key | `task-tabs` | `true` forces the tab bar on, `false` forces it off |
 | Show open count on tabs | On | |
+| Section background | On | Draw each tag section on a light surface with a border |
 | Drag scope | All notes | Same options as fold scope |
 | Quick add on blank lines | All notes | Where the `+` appears next to a blank line; same options as fold scope |
 | Pinned notes | empty | One vault path per line; "Pin / unpin current note" writes here too, and unpinning inside Obsidian removes the entry |
@@ -82,7 +83,7 @@ List the notes you keep open all day. Their tabs are pinned automatically, shrin
 ## Roadmap
 
 - **0.1** – first public release: folding, tabs, block dragging, re-sort on check, pinned notes.
-- **0.2** – reorderable tabs, quick add on blank lines, a clearer tab bar.
+- **0.2** – reorderable tabs, quick add on blank lines, sections on their own surface.
 - **0.x** – refinements driven by feedback: mobile drag tuning, more section actions, keyboard-only workflows. Minor versions add features, patch versions fix bugs.
 - **1.0** – listed in the Obsidian community plugin directory.
 

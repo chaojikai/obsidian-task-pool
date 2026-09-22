@@ -74,6 +74,38 @@
 }
 body.tp-tab-dragging, body.tp-tab-dragging * { cursor: grabbing !important; user-select: none !important; }
 
+/* ===== Section surface ===== */
+/* Each tag section is painted as one card. There is no element wrapping a section in either view,
+   so the surface is drawn per line (editing) or per rendered block (reading): inset shadows give the
+   sides without shifting any text, and only the first and last piece round their corners. */
+.tp-sec {
+  background-color: var(--background-primary-alt);
+  box-shadow: inset 1px 0 0 var(--background-modifier-border), inset -1px 0 0 var(--background-modifier-border);
+}
+.tp-sec-top {
+  border-top-left-radius: var(--radius-m);
+  border-top-right-radius: var(--radius-m);
+  box-shadow: inset 1px 0 0 var(--background-modifier-border), inset -1px 0 0 var(--background-modifier-border), inset 0 1px 0 var(--background-modifier-border);
+}
+.tp-sec-bottom {
+  border-bottom-left-radius: var(--radius-m);
+  border-bottom-right-radius: var(--radius-m);
+  box-shadow: inset 1px 0 0 var(--background-modifier-border), inset -1px 0 0 var(--background-modifier-border), inset 0 -1px 0 var(--background-modifier-border);
+}
+.tp-sec-top.tp-sec-bottom {
+  border-radius: var(--radius-m);
+  box-shadow: inset 0 0 0 1px var(--background-modifier-border);
+}
+/* Editing view: pad the card away from its first and last line of text */
+.cm-line.tp-sec-top { padding-top: 6px; }
+.cm-line.tp-sec-bottom { padding-bottom: 6px; }
+/* Reading view: the blocks of one section must touch, or the note background shows through the card */
+.markdown-preview-view .tp-sec { margin-block: 0; padding-block: 2px; }
+.markdown-preview-view .tp-sec-top { margin-top: 14px; padding-top: 8px; }
+.markdown-preview-view .tp-sec-bottom { margin-bottom: 14px; padding-bottom: 8px; }
+.markdown-preview-view .tp-sec > :first-child { margin-top: 0; }
+.markdown-preview-view .tp-sec > :last-child { margin-bottom: 0; }
+
 /* ===== Fold completed ===== */
 .tp-fold-toggle {
   display: flex;
@@ -89,6 +121,8 @@ body.tp-tab-dragging, body.tp-tab-dragging * { cursor: grabbing !important; user
 .tp-fold-toggle:hover { color: var(--text-muted); }
 .tp-fold-arrow { display: inline-block; width: 12px; text-align: center; font-size: 0.9em; }
 .cm-content .tp-fold-toggle { padding-inline-start: 6px; }
+.tp-fold-toggle.tp-sec { padding-inline-start: 6px; }
+.tp-fold-toggle.tp-sec-bottom { padding-bottom: 6px; }
 .markdown-preview-view li.tp-fold-toggle { list-style: none; margin-inline-start: 0; }
 .markdown-preview-view li.tp-fold-toggle::marker { content: ""; }
 .markdown-preview-view li.tp-fold-toggle::before { display: none; }

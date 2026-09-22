@@ -1,6 +1,6 @@
 # Builds the plugin and publishes main.js, manifest.json and styles.css to the GitHub release for a tag.
 # Runs on a tag push whose name matches the manifest.json version (for example 0.1.0), or by hand from the Actions tab.
-# A missing release is created as a draft; an existing one gets its assets replaced.
+# A missing release is created and published straight away; an existing one gets its assets replaced.
 name: Release Obsidian plugin
 
 on:

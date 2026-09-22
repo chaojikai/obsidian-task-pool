@@ -13,6 +13,7 @@ export interface TaskPoolSettings {
   enabledPaths: string[];
   frontmatterKey: string;
   showCounts: boolean;
+  sectionSurface: boolean;
   dragScope: Scope;
   quickAddScope: Scope;
   autoArchive: boolean;
@@ -31,6 +32,7 @@ export const DEFAULT_SETTINGS: TaskPoolSettings = {
   enabledPaths: [],
   frontmatterKey: "task-tabs",
   showCounts: true,
+  sectionSurface: true,
   dragScope: "all",
   quickAddScope: "all",
   autoArchive: true,
@@ -124,6 +126,15 @@ export class TaskPoolSettingTab extends PluginSettingTab {
         await save();
       })
     );
+    new Setting(containerEl)
+      .setName(t.sSectionSurface)
+      .setDesc(t.sSectionSurfaceDesc)
+      .addToggle((tg) =>
+        tg.setValue(s.sectionSurface).onChange(async (v) => {
+          s.sectionSurface = v;
+          await save();
+        })
+      );
 
     new Setting(containerEl).setName(t.sPin).setHeading();
     new Setting(containerEl)

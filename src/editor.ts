@@ -1,7 +1,7 @@
 // Live Preview side: a StateField providing block-level replace decorations for "fold completed" and "tab filtering"
 import { EditorState, RangeSetBuilder, StateEffect, StateField, Transaction } from "@codemirror/state";
 import { Decoration, DecorationSet, EditorView, WidgetType } from "@codemirror/view";
-import { DocModel, parseDoc, sectionByKey } from "./model";
+import { DocModel, Section, isBlank, parseDoc, sectionByKey } from "./model";
 import { t } from "./i18n";
 
 export interface EditorConfig {
@@ -9,6 +9,8 @@ export interface EditorConfig {
   tabsEnabled: boolean;
   keepLast: number;
   activeTab: string | null;
+  /** Draw each tag section on its own surface so the groups read apart */
+  sectionSurface: boolean;
 }
 
 export const setConfigEffect = StateEffect.define<Partial<EditorConfig>>();
@@ -23,19 +25,27 @@ interface FieldValue {
   expanded: Set<string>;
   model: DocModel;
   decos: DecorationSet;
+  sectionDecos: DecorationSet;
 }
 
-const DEFAULT_CONFIG: EditorConfig = { foldEnabled: false, tabsEnabled: false, keepLast: 3, activeTab: null };
+const DEFAULT_CONFIG: EditorConfig = { foldEnabled: false, tabsEnabled: false, keepLast: 3, activeTab: null, sectionSurface: false };
+
+/** Last line of a section that still carries content; the blank lines after it are the gap to the next one */
+function sectionContentEnd(model: DocModel, section: Section): number {
+  let end = Math.min(section.end, model.lines.length - 1);
+  while (end > section.start && isBlank(model.lines[end])) end--;
+  return end;
+}
 
 class FoldToggleWidget extends WidgetType {
-  constructor(readonly runKey: string, readonly total: number, readonly hidden: number, readonly collapsed: boolean) {
+  constructor(readonly runKey: string, readonly total: number, readonly hidden: number, readonly collapsed: boolean, readonly surface: string) {
     super();
   }
   eq(other: FoldToggleWidget): boolean {
-    return other.runKey === this.runKey && other.total === this.total && other.hidden === this.hidden && other.collapsed === this.collapsed;
+    return other.runKey === this.runKey && other.total === this.total && other.hidden === this.hidden && other.collapsed === this.collapsed && other.surface === this.surface;
   }
   toDOM(view: EditorView): HTMLElement {
-    const el = createDiv({ cls: "tp-fold-toggle " + (this.collapsed ? "is-collapsed" : "is-expanded") });
+    const el = createDiv({ cls: "tp-fold-toggle " + (this.collapsed ? "is-collapsed" : "is-expanded") + this.surface });
     const arrow = el.createSpan({ cls: "tp-fold-arrow" });
     arrow.setText(this.collapsed ? "▸" : "▾");
     const label = el.createSpan({ cls: "tp-fold-label" });
@@ -84,6 +94,7 @@ function buildDecorations(state: EditorState, model: DocModel, config: EditorCon
   }
 
   // Fold completed runs
+  const surfaced = config.tabsEnabled && config.sectionSurface;
   if (config.foldEnabled && config.keepLast >= 0) {
     for (const run of model.runs) {
       if (run.items.length <= config.keepLast) continue;
@@ -91,6 +102,9 @@ function buildDecorations(state: EditorState, model: DocModel, config: EditorCon
       const hiddenItems = run.items.slice(0, run.items.length - config.keepLast);
       const from = lineFrom(hiddenItems[0].start);
       const to = lineTo(hiddenItems[hiddenItems.length - 1].end);
+      // The widget stands in for lines inside a section, so it carries the same surface
+      const last = hiddenItems[hiddenItems.length - 1].end;
+      const surface = !surfaced || !run.section ? "" : " tp-sec" + (last === sectionContentEnd(model, run.section) ? " tp-sec-bottom" : "");
       let cursorInside = false;
       for (const r of state.selection.ranges) {
         if (r.to >= from && r.from <= to) { cursorInside = true; break; }
@@ -100,14 +114,14 @@ function buildDecorations(state: EditorState, model: DocModel, config: EditorCon
         ranges.push({
           from,
           to: from,
-          deco: Decoration.widget({ widget: new FoldToggleWidget(run.key, run.items.length, hiddenItems.length, false), block: true, side: -1 }),
+          deco: Decoration.widget({ widget: new FoldToggleWidget(run.key, run.items.length, hiddenItems.length, false, surfaced && run.section ? " tp-sec" : ""), block: true, side: -1 }),
           side: -1,
         });
       } else {
         ranges.push({
           from,
           to,
-          deco: Decoration.replace({ widget: new FoldToggleWidget(run.key, run.items.length, hiddenItems.length, true), block: true }),
+          deco: Decoration.replace({ widget: new FoldToggleWidget(run.key, run.items.length, hiddenItems.length, true, surface), block: true }),
           side: 0,
         });
       }
@@ -119,11 +133,33 @@ function buildDecorations(state: EditorState, model: DocModel, config: EditorCon
   return builder.finish();
 }
 
+/** Line decorations that paint each tag section as one surface; kept apart from the replace decorations above so they never join the atomic ranges */
+function buildSectionDecorations(state: EditorState, model: DocModel, config: EditorConfig): DecorationSet {
+  if (!config.tabsEnabled || !config.sectionSurface || model.sections.length === 0) return Decoration.none;
+  const doc = state.doc;
+  const builder = new RangeSetBuilder<Decoration>();
+  for (const s of model.sections) {
+    const end = Math.min(sectionContentEnd(model, s), doc.lines - 1);
+    for (let l = s.start; l <= end; l++) {
+      const cls = "tp-sec" + (l === s.start ? " tp-sec-top" : "") + (l === end ? " tp-sec-bottom" : "");
+      const from = doc.line(l + 1).from;
+      builder.add(from, from, Decoration.line({ class: cls }));
+    }
+  }
+  return builder.finish();
+}
+
 export const taskPoolField = StateField.define<FieldValue>({
   create(state) {
     const model = parseDoc(docLines(state));
     const config = { ...DEFAULT_CONFIG };
-    return { config, expanded: new Set(), model, decos: buildDecorations(state, model, config, new Set()) };
+    return {
+      config,
+      expanded: new Set(),
+      model,
+      decos: buildDecorations(state, model, config, new Set()),
+      sectionDecos: buildSectionDecorations(state, model, config),
+    };
   },
   update(value, tr: Transaction) {
     let config = value.config;
@@ -143,10 +179,17 @@ export const taskPoolField = StateField.define<FieldValue>({
     }
     const model = tr.docChanged ? parseDoc(docLines(tr.state)) : value.model;
     if (!tr.docChanged && !changed && !tr.selection) return value;
-    return { config, expanded, model, decos: buildDecorations(tr.state, model, config, expanded) };
+    return {
+      config,
+      expanded,
+      model,
+      decos: buildDecorations(tr.state, model, config, expanded),
+      sectionDecos: tr.docChanged || changed ? buildSectionDecorations(tr.state, model, config) : value.sectionDecos,
+    };
   },
   provide: (f) => [
     EditorView.decorations.from(f, (v) => v.decos),
+    EditorView.decorations.from(f, (v) => v.sectionDecos),
     EditorView.atomicRanges.of((view) => view.state.field(f).decos),
   ],
 });

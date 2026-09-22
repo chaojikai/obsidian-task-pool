@@ -67,6 +67,7 @@ export default class TaskPoolPlugin extends Plugin {
         isFoldEnabled: (p) => this.scopeAllowsPath(this.settings.foldScope, p),
         keepLast: () => this.settings.keepLast,
         activeTab: (p) => this.settings.activeTabs[p] ?? null,
+        sectionSurface: () => this.settings.sectionSurface,
         expanded: this.readingExpanded,
       })
     );
@@ -226,8 +227,9 @@ export default class TaskPoolPlugin extends Plugin {
 
     if (hasField && cm) {
       const cur = getConfig(cm);
-      if (cur.tabsEnabled !== tabsEnabled || cur.foldEnabled !== foldEnabled || cur.keepLast !== this.settings.keepLast || cur.activeTab !== activeTab) {
-        cm.dispatch({ effects: setConfigEffect.of({ tabsEnabled, foldEnabled, keepLast: this.settings.keepLast, activeTab }) });
+      const sectionSurface = this.settings.sectionSurface;
+      if (cur.tabsEnabled !== tabsEnabled || cur.foldEnabled !== foldEnabled || cur.keepLast !== this.settings.keepLast || cur.activeTab !== activeTab || cur.sectionSurface !== sectionSurface) {
+        cm.dispatch({ effects: setConfigEffect.of({ tabsEnabled, foldEnabled, keepLast: this.settings.keepLast, activeTab, sectionSurface }) });
       }
     }
 

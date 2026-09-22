@@ -1,6 +1,6 @@
 // Reading view: a post-processor that hides sections outside the active tab and folds runs of completed items
 import { MarkdownPostProcessorContext } from "obsidian";
-import { DocModel, parseDoc, sectionByKey } from "./model";
+import { DocModel, Section, isBlank, parseDoc, sectionByKey } from "./model";
 import { t } from "./i18n";
 
 export interface ReadingHost {
@@ -8,7 +8,15 @@ export interface ReadingHost {
   isFoldEnabled(path: string): boolean;
   keepLast(): number;
   activeTab(path: string): string | null;
+  sectionSurface(): boolean;
   expanded: Set<string>;
+}
+
+/** Last line of a section that still carries content; the blank lines after it are the gap to the next one */
+function sectionContentEnd(model: DocModel, section: Section): number {
+  let end = Math.min(section.end, model.lines.length - 1);
+  while (end > section.start && isBlank(model.lines[end])) end--;
+  return end;
 }
 
 let cache: { text: string; model: DocModel } | null = null;
@@ -29,12 +37,21 @@ export function readingPostProcessor(host: ReadingHost) {
     if (tabs) {
       const info = ctx.getSectionInfo(el);
       const active = host.activeTab(path);
-      if (info && active) {
+      if (info) {
         const model = modelFor(info.text);
-        const section = sectionByKey(model, active);
+        const section = active ? sectionByKey(model, active) : null;
         if (section) {
           const hidden = !(info.lineEnd >= section.start && info.lineStart <= section.end);
           el.classList.toggle("tp-hidden", hidden);
+        }
+        // Paint the rendered blocks of a section as one surface; the pieces butt together into a single card
+        if (host.sectionSurface()) {
+          const own = model.sections.find((s) => info.lineStart >= s.start && info.lineStart <= s.end);
+          const end = own ? sectionContentEnd(model, own) : -1;
+          const inside = !!own && info.lineStart <= end;
+          el.classList.toggle("tp-sec", inside);
+          el.classList.toggle("tp-sec-top", inside && info.lineStart === own.start);
+          el.classList.toggle("tp-sec-bottom", inside && info.lineEnd >= end);
         }
       }
     }

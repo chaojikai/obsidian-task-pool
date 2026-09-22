@@ -5,6 +5,7 @@
 - Reorder sections by dragging their tabs: drop a tab between two others and the section moves with it in the note
 - A plus appears in the gutter of a blank line; clicking it turns the line into a task, indented like the list above, for when the cursor did not arrive there from another task
 - Tasks with no text are left out of the tab counts, so a checkbox you are still writing does not show up as an open task
+- Each tag section is drawn on a light surface with a border, so the groups read apart in the All view; the fold line inside a section is part of the same card. Turn it off with "Section background"
 - The tab bar now sits on a tinted surface with the active tab lifted off it, so it reads as one block instead of floating over the note
 
 ## 0.1.1 - 2026-09-18
