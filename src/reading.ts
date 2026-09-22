@@ -1,6 +1,6 @@
 // Reading view: a post-processor that hides sections outside the active tab and folds runs of completed items
 import { MarkdownPostProcessorContext } from "obsidian";
-import { DocModel, Section, isBlank, parseDoc, sectionByKey } from "./model";
+import { DocModel, parseDoc, sectionByKey, sectionContentEnd } from "./model";
 import { t } from "./i18n";
 
 export interface ReadingHost {
@@ -10,13 +10,6 @@ export interface ReadingHost {
   activeTab(path: string): string | null;
   sectionSurface(): boolean;
   expanded: Set<string>;
-}
-
-/** Last line of a section that still carries content; the blank lines after it are the gap to the next one */
-function sectionContentEnd(model: DocModel, section: Section): number {
-  let end = Math.min(section.end, model.lines.length - 1);
-  while (end > section.start && isBlank(model.lines[end])) end--;
-  return end;
 }
 
 let cache: { text: string; model: DocModel } | null = null;

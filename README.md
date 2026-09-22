@@ -24,7 +24,7 @@ Hover any list item, paragraph, heading or code block and a ⋮⋮ handle appear
 
 ### A task on any blank line
 
-Pressing Enter on a task continues the list, but a blank line you arrived at some other way does not. Hover one and a small `+` appears in the gutter: click it and the line becomes an empty task, indented to match the list above it.
+Pressing Enter on a task continues the list, but a blank line you arrived at some other way does not. Hover one and a small `+` appears in the gutter: click it and the line becomes an empty task, indented to match the list above it. The same `+` shows up next to the empty strip that closes a section, where it adds a task at the end of that section.
 
 ### Checked tasks sort themselves
 

@@ -268,6 +268,13 @@ export function sectionAtLine(model: DocModel, line: number): Section | null {
   return null;
 }
 
+/** Last line of a section that still carries content; the blank lines after it are the gap to the next one */
+export function sectionContentEnd(model: DocModel, section: Section): number {
+  let end = Math.min(section.end, model.lines.length - 1);
+  while (end > section.start && isBlank(model.lines[end])) end--;
+  return end;
+}
+
 export function sectionByKey(model: DocModel, key: string | null): Section | null {
   if (!key) return null;
   return model.sections.find((s) => s.key === key) ?? null;

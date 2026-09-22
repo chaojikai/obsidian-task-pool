@@ -1,7 +1,7 @@
 // Live Preview side: a StateField providing block-level replace decorations for "fold completed" and "tab filtering"
 import { EditorState, RangeSetBuilder, StateEffect, StateField, Transaction } from "@codemirror/state";
 import { Decoration, DecorationSet, EditorView, WidgetType } from "@codemirror/view";
-import { DocModel, Section, isBlank, parseDoc, sectionByKey } from "./model";
+import { DocModel, parseDoc, sectionByKey, sectionContentEnd } from "./model";
 import { t } from "./i18n";
 
 export interface EditorConfig {
@@ -29,13 +29,6 @@ interface FieldValue {
 }
 
 const DEFAULT_CONFIG: EditorConfig = { foldEnabled: false, tabsEnabled: false, keepLast: 3, activeTab: null, sectionSurface: false };
-
-/** Last line of a section that still carries content; the blank lines after it are the gap to the next one */
-function sectionContentEnd(model: DocModel, section: Section): number {
-  let end = Math.min(section.end, model.lines.length - 1);
-  while (end > section.start && isBlank(model.lines[end])) end--;
-  return end;
-}
 
 class FoldToggleWidget extends WidgetType {
   constructor(readonly runKey: string, readonly total: number, readonly hidden: number, readonly collapsed: boolean, readonly surface: string) {

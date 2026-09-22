@@ -7,7 +7,7 @@ import { TabBar } from "./tabs";
 import { readingPostProcessor } from "./reading";
 import { PinManager } from "./pin";
 import { DocModel, ListItem, Section, itemAtLine, parseDoc, parseListLine, sectionAtLine, sectionByKey } from "./model";
-import { moveItem, moveItemToSection, moveSection, sectionAppendTarget } from "./moves";
+import { insertTask, moveItem, moveItemToSection, moveSection, sectionAppendTarget } from "./moves";
 import { t } from "./i18n";
 
 const AUTO_MIN_SECTIONS = 2;
@@ -310,14 +310,7 @@ export default class TaskPoolPlugin extends Plugin {
       line = cm.state.doc.lines;
       while (line > 0 && cm.state.doc.line(line).text.trim() === "") line--;
     }
-    const text = " ".repeat(indent) + "- [ ] ";
-    const doc = cm.state.doc;
-    let from: number;
-    let insert: string;
-    if (line < doc.lines) { from = doc.line(line + 1).from; insert = text + "\n"; }
-    else { from = doc.length; insert = (doc.length > 0 && doc.sliceString(doc.length - 1) !== "\n" ? "\n" : "") + text; }
-    cm.dispatch({ changes: { from, insert }, selection: { anchor: from + insert.length - (insert.endsWith("\n") ? 1 : 0) }, scrollIntoView: true });
-    cm.focus();
+    insertTask(cm, { line, indent });
   }
 
   // ---- Re-sort on check ----

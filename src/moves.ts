@@ -86,6 +86,27 @@ export function moveItem(view: EditorView, model: DocModel, range: LineRange, ta
   return true;
 }
 
+/** Write an empty task before target.line at target.indent, and leave the cursor on it */
+export function insertTask(view: EditorView, target: MoveTarget): void {
+  const doc = view.state.doc;
+  const text = " ".repeat(target.indent) + "- [ ] ";
+  let from: number;
+  let insert: string;
+  if (target.line < doc.lines) {
+    from = doc.line(target.line + 1).from;
+    insert = text + "\n";
+  } else {
+    from = doc.length;
+    insert = (doc.length > 0 && doc.sliceString(doc.length - 1) !== "\n" ? "\n" : "") + text;
+  }
+  view.dispatch({
+    changes: { from, insert },
+    selection: { anchor: from + insert.length - (insert.endsWith("\n") ? 1 : 0) },
+    scrollIntoView: true,
+  });
+  view.focus();
+}
+
 /** Insertion point at the end of a section: after the last outermost list item, or right after the tag line when there are none */
 export function sectionAppendTarget(model: DocModel, section: Section, exclude?: LineRange): MoveTarget {
   const inSection = model.items.filter((it) => {

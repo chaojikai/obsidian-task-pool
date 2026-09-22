@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased
+
+- The empty strip that closes a section card is now a target too: the gutter `+` appears next to it and adds a task at the end of that section
+- Adding a task on the blank line between two sections keeps the blank line, so the two cards no longer run together
+- Fix: the padding inside a section card never applied, because Obsidian's own `.cm-line` rules out-specified it; the last task sat on the card's border
+
 ## 0.2.0 - 2026-09-22
 
 - Reorder sections by dragging their tabs: drop a tab between two others and the section moves with it in the note

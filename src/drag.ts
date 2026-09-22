@@ -1,12 +1,13 @@
 // Notion-style block dragging: list items, paragraphs, headings and fenced blocks get a handle on hover (or on the cursor line on mobile);
 // drag it elsewhere or onto a tab. Select several blocks first and they move together.
-// The same gutter slot carries a plus button on blank lines, which turns the line into a task
+// The same gutter slot carries a plus button on blank lines and in the empty strip that closes a section card,
+// which writes an empty task there
 // Pointer Events give mouse and touch a single code path
 import { EditorView, ViewPlugin, ViewUpdate, PluginValue } from "@codemirror/view";
 import { Platform, setIcon } from "obsidian";
 import { getModel } from "./editor";
-import { Block, DocModel, LineRange, blockAtLine, isBlank, itemAtLine, parseListLine, sectionAtLine } from "./model";
-import { MoveOptions, MoveTarget, isNoopMove, moveItem } from "./moves";
+import { Block, DocModel, LineRange, blockAtLine, isBlank, isTagLine, itemAtLine, parseListLine, sectionAtLine, sectionContentEnd } from "./model";
+import { MoveOptions, MoveTarget, insertTask, isNoopMove, moveItem, sectionAppendTarget } from "./moves";
 import { t } from "./i18n";
 
 export interface DragHost {
@@ -29,9 +30,12 @@ interface DragState {
 const HANDLE_H = 20;
 const HANDLE_GAP = 24;
 
-/** Where the gutter affordance goes, and which one it is: a drag handle on a block, a plus on a blank line */
+/**
+ * Where the gutter affordance goes and which one it is: a drag handle on a block, or a plus that writes a task —
+ * "add" turns the blank line it sits on into one, "append" adds one at the end of the section whose card ends there
+ */
 interface Gutter {
-  kind: "handle" | "add";
+  kind: "handle" | "add" | "append";
   left: number;
   top: number;
   line: number;
@@ -44,6 +48,7 @@ class DragHandler implements PluginValue {
   ghost: HTMLElement | null = null;
   hoverLine = -1;
   addLine = -1;
+  addKind: "add" | "append" = "add";
   drag: DragState | null = null;
   scrollTimer: number | null = null;
   scrollDir = 0;
@@ -101,12 +106,25 @@ class DragHandler implements PluginValue {
     return !itemAtLine(model, lineIdx);
   }
 
-  private measureGutter(lineIdx: number): Gutter | null {
+  /** The strip of padding that closes a section card, when the pointer is in it */
+  private tailStrip(model: DocModel, lineIdx: number, lineEl: HTMLElement | null, y: number): { top: number; height: number } | null {
+    if (!lineEl || !this.host.isQuickAddEnabled(this.view)) return null;
+    const section = sectionAtLine(model, lineIdx);
+    if (!section || sectionContentEnd(model, section) !== lineIdx) return null;
+    const height = parseFloat(getComputedStyle(lineEl).paddingBottom) || 0;
+    if (height < HANDLE_H) return null;
+    const top = lineEl.getBoundingClientRect().bottom - height;
+    return y >= top ? { top, height } : null;
+  }
+
+  private measureGutter(lineIdx: number, tail = false): Gutter | null {
     const doc = this.view.state.doc;
     if (lineIdx < 0 || lineIdx >= doc.lines) return null;
     const model = getModel(this.view);
     let kind: Gutter["kind"];
-    if (isBlank(doc.line(lineIdx + 1).text)) {
+    if (tail) {
+      kind = "append";
+    } else if (isBlank(doc.line(lineIdx + 1).text)) {
       if (!this.canQuickAdd(model, lineIdx)) return null;
       kind = "add";
     } else {
@@ -128,11 +146,13 @@ class DragHandler implements PluginValue {
       const cs = getComputedStyle(lineEl);
       bulletX += (parseFloat(cs.paddingInlineStart) || 0) + (parseFloat(cs.textIndent) || 0);
     }
-    const top = lineRect ? lineRect.top : coords.top;
+    const strip = kind === "append" ? this.tailStrip(model, lineIdx, lineEl, Infinity) : null;
+    if (kind === "append" && !strip) return null;
+    const top = strip ? strip.top + (strip.height - HANDLE_H) / 2 : (lineRect ? lineRect.top : coords.top) + (this.view.defaultLineHeight - HANDLE_H) / 2;
     return {
       kind,
       left: bulletX - editorRect.left - HANDLE_GAP,
-      top: top - editorRect.top + (this.view.defaultLineHeight - HANDLE_H) / 2,
+      top: top - editorRect.top,
       line: lineIdx,
     };
   }
@@ -145,8 +165,10 @@ class DragHandler implements PluginValue {
     el.style.left = `${m.left}px`;
     el.style.top = `${m.top}px`;
     el.classList.add("is-visible");
+    if (m.kind !== "handle") this.adder.setAttribute("aria-label", m.kind === "append" ? t.addTaskToSection : t.addTaskHere);
     this.hoverLine = m.kind === "handle" ? m.line : -1;
-    this.addLine = m.kind === "add" ? m.line : -1;
+    this.addLine = m.kind === "handle" ? -1 : m.line;
+    if (m.kind !== "handle") this.addKind = m.kind;
   }
 
   onHover = (e: PointerEvent): void => {
@@ -160,9 +182,11 @@ class DragHandler implements PluginValue {
     const lineEl = this.lineElementAt(line.from);
     const rect = lineEl?.getBoundingClientRect() ?? this.view.coordsAtPos(line.from);
     if (!rect) { this.hideHandle(); return; }
+    // A section card ends with an empty strip below its last task; offer a task appended to the section there
+    const tail = !!this.tailStrip(getModel(this.view), lineIdx, lineEl, e.clientY);
     const bottom = Math.min(rect.bottom, rect.top + this.view.defaultLineHeight * 1.6);
-    if (e.clientY < rect.top - 2 || e.clientY > bottom + 2) { this.hideHandle(); return; }
-    this.applyGutter(this.measureGutter(lineIdx));
+    if (e.clientY < rect.top - 2 || (!tail && e.clientY > bottom + 2)) { this.hideHandle(); return; }
+    this.applyGutter(this.measureGutter(lineIdx, tail));
   };
 
   onLeave = (): void => {
@@ -184,13 +208,26 @@ class DragHandler implements PluginValue {
   }
 
   // ---- Quick add ----
-  /** Turn the blank line under the plus into an empty task, matching the indent and marker of the list above it */
+  /** Write an empty task where the plus sits: in place of the blank line, or at the end of the section the card closes */
   onAddClick = (e: MouseEvent): void => {
     e.preventDefault();
     e.stopPropagation();
     const lineIdx = this.addLine;
     const doc = this.view.state.doc;
     if (lineIdx < 0 || lineIdx >= doc.lines) return;
+    const model = getModel(this.view);
+    const kind = this.addKind;
+    this.hideHandle();
+    if (kind === "append") {
+      // Same insertion point as the tab bar's own plus, except that the plus is drawn below the card's last
+      // line: a section ending in prose gets the task there rather than back up under the tag line
+      const section = sectionAtLine(model, lineIdx);
+      const target = section ? sectionAppendTarget(model, section) : { line: lineIdx + 1, indent: 0 };
+      target.line = Math.max(target.line, lineIdx + 1);
+      insertTask(this.view, target);
+      return;
+    }
+    // Follow the list above the blank line, so a task typed under an indented one stays at that level
     let indent = 0;
     let marker = "-";
     for (let i = lineIdx - 1; i >= 0; i--) {
@@ -204,11 +241,12 @@ class DragHandler implements PluginValue {
       break;
     }
     const line = doc.line(lineIdx + 1);
-    const insert = " ".repeat(indent) + marker + " [ ] ";
-    this.hideHandle();
+    const text = " ".repeat(indent) + marker + " [ ] ";
+    // This blank line may be the gap before the next section; keep one so the two never run together
+    const keepGap = lineIdx + 1 < doc.lines && isTagLine(doc.line(lineIdx + 2).text);
     this.view.dispatch({
-      changes: { from: line.from, to: line.to, insert },
-      selection: { anchor: line.from + insert.length },
+      changes: { from: line.from, to: line.to, insert: text + (keepGap ? "\n" : "") },
+      selection: { anchor: line.from + text.length },
       scrollIntoView: true,
     });
     this.view.focus();
